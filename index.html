@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OT 月曆打卡與津貼記錄冊</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --ot-bg: #e0e7ff;
+            --ot-border: #6366f1;
+            --ot-text: #3730a3;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            margin: 0 0 6px 0;
+            color: var(--primary);
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        /* 月曆頂部導覽 */
+        .cal-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .cal-nav h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text);
+        }
+
+        .cal-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .cal-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* 月曆表格 Grid */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .day-header {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            padding: 6px 0;
+        }
+
+        .day-header.sat, .day-header.sun {
+            color: #f43f5e;
+        }
+
+        .day-cell {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-height: 72px;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s ease;
+        }
+
+        .day-cell:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+        }
+
+        .day-cell.other-month {
+            opacity: 0.35;
+            background: #f1f5f9;
+        }
+
+        .day-cell.today {
+            border: 2px solid var(--primary);
+        }
+
+        .day-num {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .day-cell.has-ot {
+            background: var(--ot-bg);
+            border-color: var(--ot-border);
+        }
+
+        .ot-badge {
+            background: var(--primary);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 4px;
+            border-radius: 4px;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        .photo-thumb {
+            width: 100%;
+            height: 28px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-top: 2px;
+        }
+
+        /* 每週總結列 */
+        .weekly-summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .week-card {
+            background: #f1f5f9;
+            border-left: 4px solid var(--primary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .week-card-info h4 {
+            margin: 0 0 4px 0;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .week-card-info p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .week-card-amount {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--success-text);
+            background: var(--success-bg);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        /* 彈出視窗 Modal */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .form-group input[type="text"], .form-group input[type="file"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .img-preview-box {
+            margin-top: 8px;
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 180px;
+            border: 1px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fafafa;
+        }
+
+        .img-preview-box img {
+            max-width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .backup-bar {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn-subtle {
+            flex: 1;
+            background: #f1f5f9;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        @media (max-width: 480px) {
+            .day-cell { min-height: 60px; padding: 2px; }
+            .day-num { font-size: 0.75rem; }
+            .ot-badge { font-size: 0.6rem; padding: 1px 2px; }
+            .photo-thumb { height: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⏱️ OT 打卡月曆冊</h1>
+        <p>每日 OT 補貼固定 $100｜按週自動統計補貼</p>
+    </header>
+
+    <!-- 月曆主體 -->
+    <div class="card">
+        <div class="cal-nav">
+            <button class="cal-btn" onclick="changeMonth(-1)">❮ 上個月</button>
+            <h2 id="calTitle">2026年9月</h2>
+            <button class="cal-btn" onclick="changeMonth(1)">下個月 ❯</button>
+        </div>
+
+        <div class="calendar-grid" id="calendarHeader">
+            <div class="day-header">一</div>
+            <div class="day-header">二</div>
+            <div class="day-header">三</div>
+            <div class="day-header">四</div>
+            <div class="day-header">五</div>
+            <div class="day-header sat">六</div>
+            <div class="day-header sun">日</div>
+        </div>
+
+        <div class="calendar-grid" id="calendarBody" style="margin-top: 6px;"></div>
+    </div>
+
+    <!-- 本月每週 OT 補貼總覽 -->
+    <div class="card">
+        <h3 style="margin:0 0 12px 0; font-size: 1.05rem;">📊 本月每週 OT 結算金額 (天數 × $100)</h3>
+        <div class="weekly-summary-list" id="weeklySummary"></div>
+    </div>
+
+    <!-- 備份與匯入 -->
+    <div class="backup-bar">
+        <button class="btn-subtle" onclick="exportData()">💾 匯出備份 (JSON)</button>
+        <button class="btn-subtle" onclick="document.getElementById('importInput').click()">📥 匯入資料</button>
+        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+</div>
+
+<!-- OT 打卡 Modal -->
+<div class="modal-backdrop" id="otModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalDateTitle">2026-09-15 OT 打卡</h3>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="otForm" onsubmit="handleFormSubmit(event)">
+            <input type="hidden" id="selectedDate">
+            
+            <div style="background: var(--success-bg); color: var(--success-text); padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 0.9rem; margin-bottom: 12px;">
+                💰 OT 補貼金額：+$100
+            </div>
+
+            <div class="form-group">
+                <label for="photoInput">📸 上傳打卡證明相片</label>
+                <input type="file" id="photoInput" accept="image/*" onchange="previewSelectedPhoto(event)">
+            </div>
+
+            <div class="img-preview-box" id="previewBox">
+                <span style="color: var(--text-muted); font-size: 0.85rem;" id="noImgText">尚未上傳相片</span>
+                <img id="previewImg" style="display:none;" alt="打卡證明">
+            </div>
+
+            <div class="form-group" style="margin-top: 12px;">
+                <label for="noteInput">📝 備註（例：緊急修復 Bug / 專案加班）</label>
+                <input type="text" id="noteInput" placeholder="可不填">
+            </div>
+
+            <div class="btn-group">
+                <button type="button" class="btn-danger" id="deleteBtn" style="display:none;" onclick="deleteOT()">刪除 OT</button>
+                <button type="submit" class="btn-primary">保存 OT 記錄</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const DAILY_RATE = 100;
+    let currentDate = new Date();
+    let currentPhotoBase64 = "";
+
+    function getStorageRecords() {
+        return JSON.parse(localStorage.getItem('ot_records') || '{}');
+    }
+
+    function setStorageRecords(records) {
+        localStorage.setItem('ot_records', JSON.stringify(records));
+    }
+
+    // 計算 ISO 週號
+    function getISOWeek(d) {
+        const date = new Date(d.getTime());
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+        const week1 = new Date(date.getFullYear(), 0, 4);
+        return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
+    function renderCalendar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth(); // 0-11
+
+        document.getElementById('calTitle').innerText = `${year}年${month + 1}月`;
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+
+        // 星期一為第一天 (0: Sun, 1: Mon ... 6: Sat) -> (Mon:0, Tue:1, ..., Sun:6)
+        let firstDayIndex = (firstDayOfMonth.getDay() + 6) % 7;
+        const totalDays = lastDayOfMonth.getDate();
+
+        const calBody = document.getElementById('calendarBody');
+        calBody.innerHTML = '';
+
+        const records = getStorageRecords();
+        const todayStr = new Date().toISOString().slice(0, 10);
+
+        // 填補上個月日期
+        const prevMonthLastDay = new Date(year, month, 0).getDate();
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+            const dayNum = prevMonthLastDay - i;
+            const cell = document.createElement('div');
+            cell.className = 'day-cell other-month';
+            cell.innerHTML = `<span class="day-num">${dayNum}</span>`;
+            calBody.appendChild(cell);
+        }
+
+        // 填補本月日期
+        const weeksMap = {}; // 用於收集當月各週的 OT 記錄
+
+        for (let day = 1; day <= totalDays; day++) {
+            const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const cellDateObj = new Date(year, month, day);
+            const weekNum = getISOWeek(cellDateObj);
+
+            if (!weeksMap[weekNum]) {
+                weeksMap[weekNum] = { weekNum, days: [], datesStr: [] };
+            }
+
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            if (cellDateStr === todayStr) cell.classList.add('today');
+
+            let cellHTML = `<span class="day-num">${day}</span>`;
+
+            if (records[cellDateStr]) {
+                cell.classList.add('has-ot');
+                weeksMap[weekNum].days.push(records[cellDateStr]);
+                weeksMap[weekNum].datesStr.push(cellDateStr);
+
+                cellHTML += `<div class="ot-badge">+$${DAILY_RATE}</div>`;
+                if (records[cellDateStr].photo) {
+                    cellHTML += `<img src="${records[cellDateStr].photo}" class="photo-thumb" alt="打卡">`;
+                }
+            }
+
+            cell.innerHTML = cellHTML;
+            cell.onclick = () => openModal(cellDateStr);
+            calBody.appendChild(cell);
+        }
+
+        // 填補下個月日期湊滿7倍數
+        const totalCellsSoFar = firstDayIndex + totalDays;
+        const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
+        for (let i = 1; i <= remainingCells; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'day-cell other-month';
+            cell.innerHTML = `<span class="day-num">${i}</span>`;
+            calBody.appendChild(cell);
+        }
+
+        renderWeeklySummary(weeksMap);
+    }
+
+    function renderWeeklySummary(weeksMap) {
+        const container = document.getElementById('weeklySummary');
+        container.innerHTML = '';
+
+        const weekKeys = Object.keys(weeksMap).sort((a, b) => a - b);
+
+        if (weekKeys.length === 0) {
+            container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:10px;">本月尚無 OT 記錄</div>';
+            return;
+        }
+
+        let hasAnyOT = false;
+
+        weekKeys.forEach(wk => {
+            const wData = weeksMap[wk];
+            const otCount = wData.days.length;
+            if (otCount > 0) {
+                hasAnyOT = true;
+                const totalAmount = otCount * DAILY_RATE;
+                const card = document.createElement('div');
+                card.className = 'week-card';
+                card.innerHTML = `
+                    <div class="week-card-info">
+                        <h4>第 ${wk} 週 OT 記錄 (${otCount} 天)</h4>
+                        <p>日期：${wData.datesStr.map(d => d.slice(5)).join(', ')}</p>
+                    </div>
+                    <div class="week-card-amount">+$${totalAmount}</div>
+                `;
+                container.appendChild(card);
+            }
+        });
+
+        if (!hasAnyOT) {
+            container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:10px;">本月尚無 OT 記錄</div>';
+        }
+    }
+
+    function changeMonth(delta) {
+        currentDate.setMonth(currentDate.getMonth() + delta);
+        renderCalendar();
+    }
+
+    function openModal(dateStr) {
+        document.getElementById('selectedDate').value = dateStr;
+        document.getElementById('modalDateTitle').innerText = `${dateStr} OT 打卡記錄`;
+        
+        const records = getStorageRecords();
+        const record = records[dateStr];
+
+        currentPhotoBase64 = "";
+        document.getElementById('photoInput').value = "";
+        document.getElementById('noteInput').value = "";
+
+        if (record) {
+            document.getElementById('noteInput').value = record.note || "";
+            if (record.photo) {
+                currentPhotoBase64 = record.photo;
+                document.getElementById('previewImg').src = record.photo;
+                document.getElementById('previewImg').style.display = 'block';
+                document.getElementById('noImgText').style.display = 'none';
+            } else {
+                document.getElementById('previewImg').style.display = 'none';
+                document.getElementById('noImgText').style.display = 'inline';
+            }
+            document.getElementById('deleteBtn').style.display = 'block';
+        } else {
+            document.getElementById('previewImg').style.display = 'none';
+            document.getElementById('noImgText').style.display = 'inline';
+            document.getElementById('deleteBtn').style.display = 'none';
+        }
+
+        document.getElementById('otModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('otModal').style.display = 'none';
+    }
+
+    function previewSelectedPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // 圖片壓縮
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                const maxDim = 800;
+                if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
+                else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.65);
+
+                document.getElementById('previewImg').src = currentPhotoBase64;
+                document.getElementById('previewImg').style.display = 'block';
+                document.getElementById('noImgText').style.display = 'none';
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const dateStr = document.getElementById('selectedDate').value;
+        const note = document.getElementById('noteInput').value;
+
+        const records = getStorageRecords();
+        records[dateStr] = {
+            date: dateStr,
+            note: note,
+            photo: currentPhotoBase64,
+            amount: DAILY_RATE
+        };
+
+        try {
+            setStorageRecords(records);
+            closeModal();
+            renderCalendar();
+        } catch(err) {
+            alert('儲存失敗！相片檔案可能過大，請選擇較小的圖片。');
+        }
+    }
+
+    function deleteOT() {
+        const dateStr = document.getElementById('selectedDate').value;
+        if (confirm(`確定要刪除 ${dateStr} 的 OT 記錄嗎？`)) {
+            const records = getStorageRecords();
+            delete records[dateStr];
+            setStorageRecords(records);
+            closeModal();
+            renderCalendar();
+        }
+    }
+
+    function exportData() {
+        const records = localStorage.getItem('ot_records') || '{}';
+        const blob = new Blob([records], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ot_calendar_backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+    }
+
+    function importData(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = JSON.parse(evt.target.result);
+                if (typeof data === 'object') {
+                    localStorage.setItem('ot_records', JSON.stringify(data));
+                    renderCalendar();
+                    alert('成功匯入 OT 打卡記錄！');
+                } else {
+                    alert('匯入格式不正確！');
+                }
+            } catch(err) {
+                alert('匯入失敗，請確認 JSON 檔案格式。');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // 初始化渲染
+    renderCalendar();
+</script>
+
+</body>
+</html>
